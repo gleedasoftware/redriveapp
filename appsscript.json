@@ -9,6 +9,9 @@
       }
     ]
   },
+  "oauthScopes": [
+    "https://www.googleapis.com/auth/drive.file"
+   ],
   "exceptionLogging": "STACKDRIVER",
   "runtimeVersion": "V8"
 }
