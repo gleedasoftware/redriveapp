@@ -2,11 +2,11 @@
   ReDriveApp (short for "Recommended" or "Replacement" DriveApp)
   https://github.com/gleedasoftware/redriveapp
 
-  Provides equivalent methods to the built-in DriveApp, but that only require use of '/drive.file'
+  Provides equivalent methods offered by the built-in DriveApp, but that only require use of '/drive.file'
   OAuth scope (a "Recommended" OAuth scope). Requires use of Apps Script Advanced Services (Drive)
-  defined as with identifier 'Drive' in your Apps Script manifest file. Created in preparation for
+  defined with identifier 'Drive' in your Apps Script manifest file. Created in preparation for
   new Google OAuth changes that will make full '/drive' scope a 'Restricted' scope. Using Restricted
-  scopes on public apps will require a yearly security review as part of Google's OAuth
+  scopes on public apps will require an annual security review as part of Google's OAuth
   verification process.
   
   Also replaces built-in, related Apps Script classes with equivalents:
@@ -41,7 +41,7 @@ DriveApiVersion_ = null;
 this['ReDriveApp'] = {
   // Add local alias to run the library as normal code\
   setApiVersion: setApiVersion,
-  //createFile: createFile,
+  createFile: createFile,
   getFileById: getFileById,
   //getRootFolder: getRootFolder,
   //getFoldersByName: getFoldersByName, // define ReFolderIter (and ReFileIter) ?
@@ -69,9 +69,68 @@ function getFileById(fileId) {
   var driveFilesResource = Drive.Files.get(fileId);
 
   return new ReFile_.Base({
-    fileId: fileId,
     driveFilesResource: driveFilesResource, // 'Files' recourse from Drive API
   });
+}
+
+/* 
+  Replicate 3 different calls to DriveApp.createFile:
+    - DriveApp.createFile(blob) // 1 arg
+    - DriveApp.createFile(name, content) // 2 args
+    - DriveApp.createFile(name, content, mimeType) // 3 args
+ */
+const CREATE_FILE_SIG_BLOB = 1;
+const CREATE_FILE_SIG_NC = 2;
+const CREATE_FILE_SIG_NCM = 3;
+
+function createFile(a1, a2, a3) {
+  checkDriveApiVersionIsSet_();
+
+  var signature;
+  if (a1 === undefined) {
+    throw new Error("Invalid number or arguments to createFile()")
+  } else if (a2 === undefined && a3 === undefined) {
+    signature = CREATE_FILE_SIG_BLOB;
+  } else if (a2 !== undefined && a3 === undefined) {
+    signature = CREATE_FILE_SIG_NC;
+  } else {
+    signature = CREATE_FILE_SIG_NCM;
+  }
+
+  var driveFilesResource;
+  
+  if (signature === CREATE_FILE_SIG_BLOB) {
+    driveFilesResource = createFileFromBlob_(a1);
+  } else if (signature === CREATE_FILE_SIG_NC ) {
+    driveFilesResource = createFileFromContentAndMimetype_(a1, a2, 'text/plain');
+  } else if (signature === CREATE_FILE_SIG_NCM ) {
+    driveFilesResource = createFileFromContentAndMimetype_(a1, a2, a3);
+  }
+
+  return new ReFile_.Base({
+    driveFilesResource: driveFilesResource, // 'Files' recourse from Drive API
+  });
+  
+}
+
+function createFileFromBlob_(blob) {
+
+}
+
+function createFileFromContentAndMimetype_(name, content, mimeType) {
+// check version v2 vs v3 use different methods/params?
+  var mimeTypeStr = mimeType.toString(); // convert from Apps Script MimeType enum
+
+  var newFile = {
+    title: name,
+    mimeType: mimeTypeStr
+  };
+
+  console.log(newFile);
+
+  var blob = Utilities.newBlob(content, mimeType)
+
+  return Drive.Files.insert(newFile, blob);
 }
 
 ////////////////////////////////////////// ReFile //////////////////////////////////////////////////
@@ -148,7 +207,7 @@ reFileBaseClass_.getOwner = function getOwner() {
   });
 }
 
-// daa todo: pick up with getAs()
+// daa todo: pick up with createFile so I can test getFile with file I'd created
 
 ///////////////////////////////////////// ReFolder /////////////////////////////////////////////////
 // Define ReFolder class. This is an equivalent to the 'Folder' class returned by
